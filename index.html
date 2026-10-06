@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>برش آیکون گرد</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0b0b10;
+      color: #ffffff;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .card {
+      background: #151520;
+      border: 1px solid #33204e;
+      border-radius: 18px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      color: #f1f1f5;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .btn {
+      background: #8b5cf6;
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      border: none;
+      transition: background 0.2s, transform 0.1s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn:hover {
+      background: #7c3aed;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    #downloadBtn {
+      display: none;
+      background: #10b981;
+    }
+
+    #downloadBtn:hover {
+      background: #059669;
+    }
+
+    canvas {
+      max-width: 250px;
+      max-height: 250px;
+      width: 100%;
+      display: none;
+      border-radius: 4px;
+      background: repeating-conic-gradient(#1e1e2d 0% 25%, #151520 0% 50%) 50% / 16px 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>برش آیکون با گوشه‌های خیلی گرد</h2>
+
+    <label class="btn" for="uploader">انتخاب تصویر آیکون</label>
+    <input type="file" id="uploader" accept="image/*">
+
+    <canvas id="canvas"></canvas>
+
+    <a id="downloadBtn" class="btn">دانلود آیکون PNG</a>
+  </div>
+
+  <script>
+    const uploader = document.getElementById('uploader');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    uploader.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      img.onload = () => {
+        // ابعاد مربع به اندازه کوچک‌ترین بعد تصویر
+        const size = Math.min(img.width, img.height);
+        canvas.width = size;
+        canvas.height = size;
+
+        // شعاع گردی گوشه‌ها (0.28 یعنی گوشه‌های بسیار گرد و مدرن)
+        const radius = size * 0.28;
+
+        ctx.clearRect(0, 0, size, size);
+
+        // ایجاد مسیر گوشه‌گرد با سازگاری بالا
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(0, 0, size, size, radius);
+        } else {
+          // برای مرورگرهای خیلی قدیمی
+          ctx.moveTo(radius, 0);
+          ctx.lineTo(size - radius, 0);
+          ctx.quadraticCurveTo(size, 0, size, radius);
+          ctx.lineTo(size, size - radius);
+          ctx.quadraticCurveTo(size, size, size - radius, size);
+          ctx.lineTo(radius, size);
+          ctx.quadraticCurveTo(0, size, 0, size - radius);
+          ctx.lineTo(0, radius);
+          ctx.quadraticCurveTo(0, 0, radius, 0);
+        }
+        ctx.closePath();
+        ctx.clip();
+
+        // برش وسط عکس و رسم روی کنواس
+        const offsetX = (img.width - size) / 2;
+        const offsetY = (img.height - size) / 2;
+        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, size, size);
+
+        // نمایش کنواس و دکمه دانلود
+        canvas.style.display = 'block';
+        downloadBtn.style.display = 'inline-block';
+        downloadBtn.href = canvas.toDataURL('image/png');
+        downloadBtn.download = 'rounded-icon.png';
+
+        URL.revokeObjectURL(img.src);
+      };
+    });
+  </script>
+
+</body>
+</html>
