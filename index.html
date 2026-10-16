@@ -2,7 +2,14 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>برش آیکون گرد</title>
+  
+  <!-- تنظیمات PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
   <style>
     * {
       box-sizing: border-box;
@@ -99,6 +106,13 @@
   </div>
 
   <script>
+    // ثبت سرویس ورکر خیلی ساده برای کارکرد آفلاین
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+
     const uploader = document.getElementById('uploader');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -112,22 +126,18 @@
       img.src = URL.createObjectURL(file);
 
       img.onload = () => {
-        // ابعاد مربع به اندازه کوچک‌ترین بعد تصویر
         const size = Math.min(img.width, img.height);
         canvas.width = size;
         canvas.height = size;
 
-        // شعاع گردی گوشه‌ها (0.28 یعنی گوشه‌های بسیار گرد و مدرن)
         const radius = size * 0.28;
 
         ctx.clearRect(0, 0, size, size);
 
-        // ایجاد مسیر گوشه‌گرد با سازگاری بالا
         ctx.beginPath();
         if (ctx.roundRect) {
           ctx.roundRect(0, 0, size, size, radius);
         } else {
-          // برای مرورگرهای خیلی قدیمی
           ctx.moveTo(radius, 0);
           ctx.lineTo(size - radius, 0);
           ctx.quadraticCurveTo(size, 0, size, radius);
@@ -141,12 +151,10 @@
         ctx.closePath();
         ctx.clip();
 
-        // برش وسط عکس و رسم روی کنواس
         const offsetX = (img.width - size) / 2;
         const offsetY = (img.height - size) / 2;
         ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, size, size);
 
-        // نمایش کنواس و دکمه دانلود
         canvas.style.display = 'block';
         downloadBtn.style.display = 'inline-block';
         downloadBtn.href = canvas.toDataURL('image/png');
