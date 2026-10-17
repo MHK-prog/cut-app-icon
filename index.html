@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>برش آیکون گرد</title>
-  
+  <title>برش و تغییر اندازهٔ آیکون</title>
+
   <!-- تنظیمات PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#8b5cf6">
@@ -73,13 +73,22 @@
       transform: scale(0.98);
     }
 
-    #downloadBtn {
+    #download192,
+    #download512 {
       display: none;
       background: #10b981;
     }
 
-    #downloadBtn:hover {
+    #download192:hover,
+    #download512:hover {
       background: #059669;
+    }
+
+    .download-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
     }
 
     canvas {
@@ -90,23 +99,32 @@
       border-radius: 4px;
       background: repeating-conic-gradient(#1e1e2d 0% 25%, #151520 0% 50%) 50% / 16px 16px;
     }
+
+    #statusMessage {
+      color: #c7c7d1;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
+  <main class="card">
+    <h2>برش و تغییر اندازهٔ آیکون</h2>
 
-  <div class="card">
-    <h2>برش آیکون با گوشه‌های خیلی گرد</h2>
-
-    <label class="btn" for="uploader">انتخاب تصویر آیکون</label>
+    <label class="btn" for="uploader">انتخاب تصویر</label>
     <input type="file" id="uploader" accept="image/*">
 
-    <canvas id="canvas"></canvas>
+    <p id="statusMessage" role="status" aria-live="polite">برای شروع، یک تصویر انتخاب کنید.</p>
+    <canvas id="canvas" aria-label="پیش‌نمایش آیکون با گوشه‌های گرد"></canvas>
 
-    <a id="downloadBtn" class="btn">دانلود آیکون PNG</a>
-  </div>
+    <div class="download-actions" aria-label="دانلود خروجی‌ها">
+      <a id="download192" class="btn">دانلود ۱۹۲ × ۱۹۲</a>
+      <a id="download512" class="btn">دانلود ۵۱۲ × ۵۱۲</a>
+    </div>
+  </main>
 
   <script>
-    // ثبت سرویس ورکر خیلی ساده برای کارکرد آفلاین
+    // ثبت سرویس ورکر برای کارکرد آفلاین
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -116,54 +134,104 @@
     const uploader = document.getElementById('uploader');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const downloadBtn = document.getElementById('downloadBtn');
+    const statusMessage = document.getElementById('statusMessage');
+    const download192 = document.getElementById('download192');
+    const download512 = document.getElementById('download512');
+    let latestRequest = 0;
 
-    uploader.addEventListener('change', (e) => {
-      const file = e.target.files[0];
+    function makeRoundedSquare(image, outputSize) {
+      const output = document.createElement('canvas');
+      output.width = outputSize;
+      output.height = outputSize;
+
+      const outputContext = output.getContext('2d');
+      const radius = outputSize * 0.28;
+      const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+      const sourceX = (image.naturalWidth - sourceSize) / 2;
+      const sourceY = (image.naturalHeight - sourceSize) / 2;
+
+      outputContext.beginPath();
+      if (typeof outputContext.roundRect === 'function') {
+        outputContext.roundRect(0, 0, outputSize, outputSize, radius);
+      } else {
+        outputContext.moveTo(radius, 0);
+        outputContext.lineTo(outputSize - radius, 0);
+        outputContext.quadraticCurveTo(outputSize, 0, outputSize, radius);
+        outputContext.lineTo(outputSize, outputSize - radius);
+        outputContext.quadraticCurveTo(outputSize, outputSize, outputSize - radius, outputSize);
+        outputContext.lineTo(radius, outputSize);
+        outputContext.quadraticCurveTo(0, outputSize, 0, outputSize - radius);
+        outputContext.lineTo(0, radius);
+        outputContext.quadraticCurveTo(0, 0, radius, 0);
+      }
+      outputContext.closePath();
+      outputContext.clip();
+      outputContext.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceSize,
+        sourceSize,
+        0,
+        0,
+        outputSize,
+        outputSize
+      );
+
+      return output;
+    }
+
+    uploader.addEventListener('change', (event) => {
+      const file = event.target.files[0];
       if (!file) return;
 
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
+      const requestId = ++latestRequest;
+      const imageUrl = URL.createObjectURL(file);
+      const image = new Image();
 
-      img.onload = () => {
-        const size = Math.min(img.width, img.height);
-        canvas.width = size;
-        canvas.height = size;
+      canvas.style.display = 'none';
+      download192.style.display = 'none';
+      download512.style.display = 'none';
+      statusMessage.textContent = 'در حال آماده‌سازی تصویر…';
 
-        const radius = size * 0.28;
+      image.onload = () => {
+        try {
+          if (requestId !== latestRequest) return;
 
-        ctx.clearRect(0, 0, size, size);
+          const output192 = makeRoundedSquare(image, 192);
+          const output512 = makeRoundedSquare(image, 512);
 
-        ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(0, 0, size, size, radius);
-        } else {
-          ctx.moveTo(radius, 0);
-          ctx.lineTo(size - radius, 0);
-          ctx.quadraticCurveTo(size, 0, size, radius);
-          ctx.lineTo(size, size - radius);
-          ctx.quadraticCurveTo(size, size, size - radius, size);
-          ctx.lineTo(radius, size);
-          ctx.quadraticCurveTo(0, size, 0, size - radius);
-          ctx.lineTo(0, radius);
-          ctx.quadraticCurveTo(0, 0, radius, 0);
+          canvas.width = 512;
+          canvas.height = 512;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(output512, 0, 0);
+
+          download192.href = output192.toDataURL('image/png');
+          download192.download = 'rounded-icon-192.png';
+          download512.href = output512.toDataURL('image/png');
+          download512.download = 'rounded-icon-512.png';
+
+          canvas.style.display = 'block';
+          download192.style.display = 'inline-block';
+          download512.style.display = 'inline-block';
+          statusMessage.textContent = 'هر دو خروجی آماده‌اند؛ اندازهٔ دلخواهتان را دانلود کنید.';
+        } catch {
+          statusMessage.textContent = 'ساخت خروجی تصویر ممکن نشد. لطفاً تصویر دیگری انتخاب کنید.';
+        } finally {
+          URL.revokeObjectURL(imageUrl);
         }
-        ctx.closePath();
-        ctx.clip();
-
-        const offsetX = (img.width - size) / 2;
-        const offsetY = (img.height - size) / 2;
-        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, size, size);
-
-        canvas.style.display = 'block';
-        downloadBtn.style.display = 'inline-block';
-        downloadBtn.href = canvas.toDataURL('image/png');
-        downloadBtn.download = 'rounded-icon.png';
-
-        URL.revokeObjectURL(img.src);
       };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(imageUrl);
+        if (requestId === latestRequest) {
+          statusMessage.textContent = 'بارگذاری تصویر انجام نشد. لطفاً تصویر دیگری انتخاب کنید.';
+        }
+      };
+
+      image.src = imageUrl;
+      uploader.value = '';
     });
   </script>
-
 </body>
 </html>
